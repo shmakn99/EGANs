@@ -3,26 +3,28 @@ import torch.nn.functional as F
 
 
 class Organism(nn.Module):
-  def __init__(self, gene_L, gene_D, num_hidden, len_support, dorpout = 0.5):
+  def __init__(self, position, fitness, gene_L, gene_D, num_hidden, len_protein, dorpout = 0.5):
     super(Organism, self).__init__()
     
     self.gene_L = gene_L
     self.gene_D = gene_D
+    self.position = position
+    self.fitness = fitness
     
     self.converter = nn.Sequential(
         nn.Linear(len(self.gene_L)+len(self.gene_D), num_hidden),
         nn.ReLU(),
         nn,Dropout(dropout),
-        nn.Linear(num_hidden, len_support),
+        nn.Linear(num_hidden, len_protein),
         nn.ReLU()
     )
     
     
   def forward(self):
-    support = torch,cat(self.gene_L, self.gene_D)
-    x = self.converter(support)
+    protein_L = converter(self.converter(self.gene_L))
+    protein_D = converter(self.converter(self.gene_D))
     
-    return x
+    return protein
   
 #---------------------------------------------------------------
   
@@ -169,21 +171,35 @@ class Fitness(nn.Module):
   def __init__(self, len_support, num_hidden,  dropout):
     super(Fitness, self).__init__()
 
-    self.Gene2Phene = nn.Sequential(
+    self.Gene2Phene_L = nn.Sequential(
         nn.Linear(len_support, num_hidden),
         nn.ReLU(),
         nn.Dropout(dropout),
-        nn.Linear(num_hidden, 4),
+        nn.Linear(num_hidden, 1),
         nn.ReLU()
+        )
+
+    self.Gene2Phene_D = nn.Sequential(
+        nn.Linear(len_support, num_hidden),
+        nn.ReLU(),
+        nn.Dropout(dropout),
+        nn.Linear(num_hidden, 2),
+        nn.Sigmoid()
         )
     
     self.fitness_criterion = nn.MSELoss()
   
   def forward(self, Org, env):
-    support = Org.forward()
+    protein_L, protein_D = Org.forward()
     
-    phene = Gene2Phene(support)
+    phene_L = self.Gene2Phene_L(protein_L)
+    phene_D = self.Gene2Phene_D(protein_D)
+
+    curr_pos = Org.position
+    next_pos = Org.position + phene_L*phene_D
+    Org.position = next_pos
+    Org.fitness = self.fitness_criterion(Org.position, env)
+
     
     
-    
-    return self.fitness_criterion(phene, env)
+    return Org
